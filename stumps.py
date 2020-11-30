@@ -11,5 +11,4 @@ class Stumps(object):
         self.bottomY = mode.height - mode.lowerMargin
 
 def drawStumps(mode, canvas):
-
     canvas.create_line(mode.stumps.topX, mode.stumps.topY, mode.stumps.bottomX, mode.stumps.bottomY, width=5, fill='yellow')

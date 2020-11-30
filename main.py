@@ -17,6 +17,11 @@ class SplashScreenMode(Mode):
     def keyPressed(mode, event):
         mode.app.setActiveMode(mode.app.gameMode)
 
+class Cursor(object):
+    def __init__(self, x=0, y=0):
+        self.x = x
+        self.y = y
+
 class GameMode(Mode):
     def appStarted(mode):
         mode.paused = False
@@ -32,6 +37,7 @@ class GameMode(Mode):
         mode.ballImage = ball.resize(ballSize,Image.ANTIALIAS)
         mode.batter = Batter(mode)
         mode.stumps = Stumps(mode)
+        mode.cursor = Cursor()
 
     def keyPressed(mode, event):
         if event.key == "p":
@@ -52,6 +58,7 @@ class GameMode(Mode):
     def doStep(mode):
         moveBalls(mode)
         checkBallCollision(mode)
+        updateBatter(mode)
         mode.count += 1
         if mode.count % (1 * (1000/mode.timerDelay)) == 0:
             bowlBall(mode)
@@ -66,7 +73,11 @@ class GameMode(Mode):
         canvas.create_rectangle(mode.width - mode.margin, 1*mode.frameHeight/5, mode.width, 3*mode.frameHeight/5, fill="orange", width = 0)
         canvas.create_rectangle(mode.width - mode.margin, 3*mode.frameHeight/5, mode.width, 4*mode.frameHeight/5, fill="blue", width = 0)
         canvas.create_rectangle(mode.width - mode.margin, 4*mode.frameHeight/5, mode.width, mode.frameHeight, fill="purple", width = 0)
-        canvas.create_rectangle(0, mode.frameHeight, mode.width, mode.height, fill='black')
+        canvas.create_rectangle(0, mode.frameHeight, mode.width, mode.height)
+    
+    def mouseMoved(mode, event):
+        mode.cursor.x = event.x
+        mode.cursor.y = event.y
 
     def redrawAll(mode, canvas):
         drawBatter(mode, canvas)
@@ -81,7 +92,7 @@ class MyModalApp(ModalApp):
         app.setActiveMode(app.gameMode)
         app.timerDelay = 1
 
-app = MyModalApp(width=800, height=500)
+app = MyModalApp(width=830, height=515)
 
 
 
