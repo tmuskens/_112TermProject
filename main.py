@@ -35,9 +35,10 @@ class GameMode(Mode):
         ballSize = (Ball.radius * 2, Ball.radius * 2)
         ball = mode.loadImage("images/ball.png")
         mode.ballImage = ball.resize(ballSize,Image.ANTIALIAS)
+        mode.cursor = Cursor()
         mode.batter = Batter(mode)
         mode.stumps = Stumps(mode)
-        mode.cursor = Cursor()
+        
 
     def keyPressed(mode, event):
         if event.key == "p":
@@ -46,7 +47,7 @@ class GameMode(Mode):
             GameMode.doStep(mode)
 
 
-    def mousePressed(mode, event):
+    def mousePressed(mode, ebvent):
         newBall = Ball(event.x, event.y)
         mode.balls.append(newBall)
 
@@ -58,6 +59,7 @@ class GameMode(Mode):
     def doStep(mode):
         moveBalls(mode)
         checkBallCollision(mode)
+        checkBallBatCollision(mode)
         updateBatter(mode)
         mode.count += 1
         if mode.count % (1 * (1000/mode.timerDelay)) == 0:

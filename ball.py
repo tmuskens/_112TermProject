@@ -1,5 +1,6 @@
 from cmu_112_graphics import *
 from utilities import *
+from batter import *
 import math
 import numpy
 
@@ -48,10 +49,6 @@ def vyHelper(v1, v2, theta1, theta2, phi, mass):
 
 
 def ballCollision(b1, b2):
-    # if b1.collided or b2.collided: return
-    # b1.collided = True
-    # b2.collided = True
-    
     Ball.ballInContact.add((b1,b2))
 
     #https://www.vobarian.com/collisions/2dcollisions2.pdf
@@ -76,23 +73,6 @@ def ballCollision(b1, b2):
     b2.dx = int(numpy.vdot(v2, (1,0)))
     b2.dy = int(numpy.vdot(v2, (0,1)))
 
-    # s1, s2 = distance(b1.dx, 0, b1.dy, 0), distance(b2.dx, 0, b2.dy, 0)
-    # #scalar speed of ball1 and ball2
-    # phi = phiHelper(b1, b2)
-    # theta1, theta2 = theta(b1), theta(b2)
-    # v1x = vxHelper(s1, s2, theta1, theta2, phi, Ball.mass)
-    # v2x = vxHelper(s2, s1, theta2, theta1, phi, Ball.mass)
-    # v1y = vyHelper(s1, s2, theta1, theta2, phi, Ball.mass)
-    # v2y = vyHelper(s2, s1, theta2, theta1, phi, Ball.mass)
-    # print("b1", "vx", b1.dx, "vy", b1.dy, "cx", b1.cx, "cy", b1.cy)
-    # print("b2", "vx", b2.dx, "vy", b2.dy, "cx", b2.cx, "cy", b2.cy)
-    # print('theta1', theta1, 'theta2', theta2, 'phi', phi)
-
-    # b1.dx, b1.dy = v1x, v1y
-    # b2.dx, b2.dy = v2x, v2y
-    # print(b1.dx, b2.dx)
-    
-
 def checkBallCollision(mode):
     for i in range(len(mode.balls)):
         for j in range(i + 1,len(mode.balls)):
@@ -106,6 +86,14 @@ def checkBallCollision(mode):
                 if (mode.balls[j], mode.balls[i]) in Ball.ballInContact:
                     Ball.ballInContact.remove((mode.balls[j], mode.balls[i]))
                     
+def checkBallBatCollision(mode):
+    batter = mode.batter
+    for ball in mode.balls:
+        A, B, C = batEquation(batter)
+        if perpendicularDistance(A, B, C, ball.cx, ball.cy) <= Ball.radius and \
+                                ball.cy - Ball.radius < batter.toeY and \
+                                ball.cy + Ball.radius > batter.handleTopY:
+            print('bat collisioin')
 
 def moveBalls(mode):
     for ball in mode.balls:
