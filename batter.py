@@ -4,7 +4,8 @@ import math
 import numpy
 
 class Batter(object):
-     def __init__(self, mode):
+    batMass = 10
+    def __init__(self, mode):
         self.leftFootX = mode.margin + 100
         self.leftFootY = mode.height - mode.lowerMargin
         self.rightFootX = mode.margin + 190
@@ -41,6 +42,11 @@ class Batter(object):
         self.toeX = mode.margin + 225
         self.toeY = mode.height - mode.lowerMargin - 25
         setBatPosition(self, mode.cursor)
+
+        self.prevPositions = []
+
+def batterOut(mode):
+    mode.gameOver = True
 
 def getDimensions(mode):
     leftEdge = mode.margin
@@ -133,6 +139,9 @@ def setBatToePosition(batter, cursor):
 
 def updateBatter(mode):
     batter = mode.batter
+    batter.prevPositions.append((batter.handleTopX, batter.handleTopY, batter.toeX, batter.toeY))
+    if len(batter.prevPositions) > 10:
+        batter.prevPositions.pop(0)
     cursor = mode.cursor
     leftEdge, rightEdge, topEdge, bottomEdge, gameWidth, gameHeight = getDimensions(mode)
     x = 0
@@ -206,25 +215,47 @@ def batEquation(batter):
 
 def drawBatter(mode, canvas):
     b = mode.batter
-    canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, fill='red') # left shin
-    canvas.create_line(b.leftKneeX, b.leftKneeY, b.leftHipX, b.leftHipY, fill = 'green') # left thigh
-    canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY, fill='red') # right shin
-    canvas.create_line(b.rightKneeX, b.rightKneeY, b.rightHipX, b.rightHipY, fill = 'green') # right thigh
+    canvas.create_polygon(b.leftShoulderX - 5, b.leftShoulderY - 5, b.rightShoulderX + 5, 
+                            b.rightShoulderY - 5, b.rightHipX + 5, b.rightHipY+ 5, 
+                            b.leftHipX - 5, b.leftHipY+ 5, fill='white')
     
     
-    canvas.create_line(b.leftHipX, b.leftHipY, b.leftShoulderX, b.leftShoulderY) #left side
-    canvas.create_line(b.rightHipX, b.rightHipY, b.rightShoulderX, b.rightShoulderY) #right side
-    canvas.create_line(b.leftHipX, b.leftHipY, b.rightHipX, b.rightHipY) # waist
-
-    canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, b.leftElbowY, fill = 'green') # left upper arm
-    canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, b.rightElbowY, fill = 'green') # right upper arm
-    canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.rightShoulderX, b.rightShoulderY) # shoulder line
-
-    canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 30, b.rightShoulderX, b.rightShoulderY)
-
-    canvas.create_line(b.leftElbowX, b.leftElbowY, b.handleTopX, b.handleTopY, fill = 'red') # left forearm
-    canvas.create_line(b.rightElbowX, b.rightElbowY, b.handleTopX, b.handleTopY, fill = 'red') # right forearm
-
-    canvas.create_line(b.handleTopX, b.handleTopY, b.toeX, b.toeY, width=3, fill='orange')
+    canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, b.leftHipX, b.leftHipY, fill='grey', width = 15) # left shin
+    canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY,b.rightHipX, b.rightHipY, fill='grey', width = 15) # right shin
 
     
+    # canvas.create_line(b.leftHipX, b.leftHipY, b.leftShoulderX, b.leftShoulderY) #left side
+    # canvas.create_line(b.rightHipX, b.rightHipY, b.rightShoulderX, b.rightShoulderY) #right side
+    # canvas.create_line(b.leftHipX, b.leftHipY, b.rightHipX, b.rightHipY) # waist
+
+    # canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, b.leftElbowY, fill = 'green') # left upper arm
+    # canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, b.rightElbowY, fill = 'green') # right upper arm
+    # canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.rightShoulderX, b.rightShoulderY) # shoulder line
+
+
+
+    canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 50, b.rightShoulderX, b.rightShoulderY, fill = 'peach puff')
+
+    # canvas.create_line(b.leftElbowX, b.leftElbowY, b.handleTopX, b.handleTopY, fill = 'red') # left forearm
+    # canvas.create_line(b.rightElbowX, b.rightElbowY, b.handleTopX, b.handleTopY, fill = 'red') # right forearm
+
+    canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, 
+                        b.leftElbowY, b.handleTopX, b.handleTopY, 
+                        fill='grey', width=10)
+    
+    canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, 
+                        b.rightElbowY, b.handleTopX, b.handleTopY, 
+                        fill='grey', width=10)
+
+    
+    angle = ((math.atan((b.toeY - b.handleTopY)/(b.toeX - b.handleTopX))) - math.pi/2) * -180/math.pi
+    if (b.toeY - b.handleTopY)/(b.toeX - b.handleTopX) < 0: angle -= 180
+    #print(angle)
+    offset = (angle/90)
+    x = 50 * math.sin(angle * math.pi/180)
+    y = 50 - 50 * math.cos(angle * math.pi/180)
+    canvas.create_image(b.handleTopX + x, b.handleTopY - y, anchor = 'n',
+                        image=ImageTk.PhotoImage(mode.batImage.rotate(angle)))
+    #canvas.create_line(b.handleTopX, b.handleTopY, b.toeX, b.toeY, width=3, fill='orange')
+
+    #canvas.create_image((b.leftShoulderX + b.rightShoulderX)/2, b.rightShoulderY -20, image=ImageTk.PhotoImage(mode.helmetImage))

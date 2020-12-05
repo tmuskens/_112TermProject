@@ -4,9 +4,22 @@ from batter import *
 import math
 import numpy
 
+class RunsLabel(object):
+    dRadius = 0.05
+    dSize = 0.1
+
+    def __init__(self, runs, x, y, color):
+        self.time = 0
+        self.runs = runs
+        self.x = x
+        self.y = y
+        self.color = color
+        self.radius = 10
+        self.size = 12
 
 class Ball(object):
     ballInContact = set()
+    ballContactBat = set()
     radius = 10
     mass = 1
     def __init__(self, x, y, dx=0, dy=0):
@@ -24,29 +37,7 @@ def drawBalls(mode, canvas):
 def bowlBall(mode):
     newBall = Ball(mode.width - 2 * mode.margin, mode.height//2, -1500, 10)
     mode.balls.append(newBall)
-
-def phiHelper(b1, b2):
-    if b2.cx == b1.cx:
-        if b2.cy - b1.cy > 0: return math.pi/2
-        elif b2.cy - b1.cy < 0: return -math.pi/2
-        else: return 0
-    return math.atan((b2.cy - b1.cy) / (b2.cx - b1.cx))
-
-def theta(b):
-    if b.dx == 0:
-        if b.dy > 0: return math.pi/2
-        elif b.dy < 0: return -math.pi/2
-        else: return 0
-    return math.atan(b.dy / b.dx)
-
-def vxHelper(v1, v2, theta1, theta2, phi, mass):
-    return (v2 * math.cos(theta2 - phi) * math.cos(phi)) +  \
-            (v1 * math.sin(theta1 - phi) * math.cos(phi + math.pi/2))
-
-def vyHelper(v1, v2, theta1, theta2, phi, mass):
-    return (v2 * math.cos(theta2 - phi) * math.sin(phi)) +  \
-            (v1 * math.sin(theta1 - phi) * math.sin(phi + math.pi/2))
-
+    mode.ballsBowled += 1
 
 def ballCollision(b1, b2):
     Ball.ballInContact.add((b1,b2))
@@ -85,7 +76,33 @@ def checkBallCollision(mode):
                     Ball.ballInContact.remove((mode.balls[i], mode.balls[j]))
                 if (mode.balls[j], mode.balls[i]) in Ball.ballInContact:
                     Ball.ballInContact.remove((mode.balls[j], mode.balls[i]))
-                    
+
+def batBallCollision(batter, ball, mode):
+    m = ball.mass
+    M = batter.batMass
+    v0 = distance(ball.dx, 0, ball.dy, 0) # scalar speed of ball
+
+    V0top = distance(batter.handleTopX, batter.handleTopY, batter.prevPositions[0][0], 
+                    batter.prevPositions[0][1]) * (1000/(mode.timerDelay * 10 * len(batter.prevPositions))) # scalar speed of the bat handle
+    V0bottom = distance(batter.toeX, batter.toeY, batter.prevPositions[0][2],   
+                        batter.prevPositions[0][3]) * (1000/(mode.timerDelay * 10 * len(batter.prevPositions))) # scalar speed of bat toe
+    dTop = distance(ball.cx, batter.handleTopX, ball.cy, batter.handleTopY) # distance between ball and top of bat
+    dBottom = distance(ball.cx, batter.toeX, ball.cy, batter.toeY) # distance between ball and bottom of bat
+    dTotal = dTop + dBottom
+    V0 = (dTop/dTotal) * V0top + (dBottom/dTotal) * V0bottom # velocity of the bat at the point where the ball is
+    v = abs((1/m) * (M*V0) + v0)
+    batNormal = math.atan(-(batter.toeX - batter.handleTopX)/(batter.toeY - batter.handleTopY))
+    
+    ballAngle = math.atan(ball.dy/ball.dx)
+    if batNormal < 0:
+        theta = batNormal - ballAngle
+        newBallAngle = batNormal + theta + math.pi
+    else: 
+        theta = ballAngle - batNormal
+        newBallAngle = batNormal - theta
+    ball.dy = v * math.cos(newBallAngle)
+    ball.dx = v * math.sin(newBallAngle)
+
 def checkBallBatCollision(mode):
     batter = mode.batter
     for ball in mode.balls:
@@ -93,17 +110,49 @@ def checkBallBatCollision(mode):
         if perpendicularDistance(A, B, C, ball.cx, ball.cy) <= Ball.radius and \
                                 ball.cy - Ball.radius < batter.toeY and \
                                 ball.cy + Ball.radius > batter.handleTopY:
-            print('bat collisioin')
+            if ball not in Ball.ballContactBat:
+                batBallCollision(batter, ball ,mode)
+                Ball.ballContactBat.add(ball)
+        else:
+            if ball in Ball.ballContactBat:
+                Ball.ballContactBat.remove(ball)
+
+def ballOut(mode, runs, color, x, y):
+    if runs != 0:
+        runsLabel = RunsLabel(runs, x, y, color)
+        mode.runsLabels.append(runsLabel)
+        mode.runs += runs
+        mode.strikeRate = round(mode.runs / mode.ballsBowled, 2)
+    else:
+        batterOut(mode)
+
 
 def moveBalls(mode):
+    leftEdge, rightEdge, topEdge, bottomEdge, gameWidth, gameHeight = getDimensions(mode)
     for ball in mode.balls:
         ball.time += mode.timerDelay * (1/(1000))
         ball.dy += (ball.time * mode.gravity)
         ball.cy += (ball.dy * mode.timerDelay) / (1000)
         ball.cx += (ball.dx * mode.timerDelay) / (1000)
-        if ball.cy > mode.frameHeight - Ball.radius and ball.dy > 0:
+        if ball.cy > bottomEdge - Ball.radius and ball.dy > 0: # hitting ground
             ball.cy -= (ball.dy / (1000/mode.timerDelay))
             ball.dy *= -0.8
             ball.dx *= (1 - (0.5 * (mode.timerDelay/1000)))
-        if (ball.cx - Ball.radius <= mode.margin) or (ball.cx + Ball.radius >= mode.width - mode.margin):
-            mode.balls.remove(ball)
+        if (ball.cx - Ball.radius <= leftEdge): ##left edge
+            for border in mode.borders:
+                if mode.frameHeight * border.leftStart <= ball.cy < \
+                    mode.frameHeight * border.leftEnd:
+                    ballOut(mode, border.runs, border.color, ball.cx, ball.cy)
+                    mode.balls.remove(ball)
+        if (ball.cx + Ball.radius >= rightEdge): ##right edge
+            for border in mode.borders:
+                if mode.frameHeight * border.rightStart <= ball.cy < \
+                    mode.frameHeight * border.rightEnd:
+                    ballOut(mode, border.runs, border.color, ball.cx, ball.cy)
+                    mode.balls.remove(ball)
+        if (ball.cy - Ball.radius <= topEdge): ##left edge
+            for border in mode.borders:
+                if mode.width * border.topStart <= ball.cx < \
+                    mode.width * border.topEnd:
+                    ballOut(mode, border.runs, border.color, ball.cx, ball.cy)
+                    mode.balls.remove(ball)
