@@ -12,6 +12,7 @@ from utilities import *
 from ball import *
 from batter import *
 from stumps import *
+from fileMethods import *
 
 class Button(object):
     def __init__(self, x1, y1, x2, y2, color, hoverColor, onClick, 
@@ -55,14 +56,23 @@ class Cursor(object):
 # Splash Screen Mode Class from 
 # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
 ###############################################################################
+
 class SplashScreenMode(Mode):
     def appStarted(mode):
         mode.cursor = Cursor()
         mode.margin = 50 
-        playButton = Button(mode.width/2 - 50, mode.margin + 200, 
-                            mode.width/2 + 50, mode.margin + 250, 
-                            'red', 'black', 'playGame', "PLAY", 'white')
-        mode.buttons = [playButton]
+        changeUser = Button(mode.width/2 - 275, mode.margin + 250, 
+                            mode.width/2 - 125, mode.margin + 300, 
+                            'red', 'black', 'changeUser', "Change User", 
+                            'white')
+        playButton = Button(mode.width/2 - 75, mode.margin + 250, 
+                            mode.width/2 + 75, mode.margin + 300, 
+                            'red', 'black', 'playGame', "Play", 'white')
+        leaderboard = Button(mode.width/2 + 125, mode.margin + 250, 
+                            mode.width/2 + 275, mode.margin + 300, 
+                            'red', 'black', 'showLeaderboard', "Leaderboard", 
+                            'white')
+        mode.splashButtons = [playButton, changeUser, leaderboard]
         
 
     def redrawAll(mode, canvas):
@@ -71,7 +81,10 @@ class SplashScreenMode(Mode):
         canvas.create_text(mode.width/2, mode.margin + 30, 
                             fill='red', text="SWING CRICKET", 
                             font = "Arial 50 bold")
-        for button in mode.buttons:
+        canvas.create_text(mode.width/2, mode.margin + 150, 
+                            text=f"Username: {mode.app.user}", fill='white', 
+                            font = "Calibri 20 bold")
+        for button in mode.splashButtons:
             if button.hover:
                 color = button.hoverColor
             else: 
@@ -88,20 +101,35 @@ class SplashScreenMode(Mode):
     def mouseMoved(mode, event):
         mode.cursor.x = event.x
         mode.cursor.y = event.y
-        for button in mode.buttons:
+        mode.cursor.type = 'arrow'
+        for button in mode.splashButtons:
             if button.inButton(mode.cursor.x, mode.cursor.y):
                 button.hover = True
                 mode.cursor.type = "hand"
             else:
                 button.hover = False
-                mode.cursor.type = "arrow"
           
     def mousePressed(mode, event):
-        for button in mode.buttons:
+        for button in mode.splashButtons:
             if button.inButton(event.x, event.y):
+                mode.appStarted()
                 if button.onClick == 'playGame':
                     mode.app.setActiveMode(mode.app.gameMode)
                     restartGame(mode)
+                elif button.onClick == 'changeUser':
+                    inputUser(mode)
+                elif button.onClick == 'showLeaderboard':
+                    mode.app.setActiveMode(mode.app.leaderboardMode)
+
+def inputUser(mode):
+    prevName = mode.app.user
+    mode.app.user = mode.getUserInput('Username:')
+    if (mode.app.user == None):
+        mode.app.user = prevName
+    else:
+        mode.app.highScore = readHighScore('highScores.txt', mode.app.user)
+        mode.app.leaderboard = readLeaderboardFile("leaderboard.txt")
+        mode.app.learboardLowest = min(mode.app.leaderboard)
 
 def restartGame(mode):
     mode.gameOver = False
@@ -175,6 +203,7 @@ class GameMode(Mode):
                     if button.onClick == 'restartGame':
                         restartGame(mode)
                     elif button.onClick == 'goHome':
+                        mode.appStarted()
                         mode.app.setActiveMode(mode.app.splashScreenMode)
 
     def timerFired(mode):
@@ -223,16 +252,14 @@ class GameMode(Mode):
     def mouseMoved(mode, event):
         mode.cursor.x = event.x
         mode.cursor.y = event.y
-        if not mode.gameOver:
-            mode.cursor.type = 'arrow'
-        else:
+        mode.cursor.type = 'arrow'
+        if mode.gameOver:
             for button in mode.gameOverButtons:
                 if button.inButton(mode.cursor.x, mode.cursor.y):
                     button.hover = True
                     mode.cursor.type = "hand"
                 else:
                     button.hover = False
-                    mode.cursor.type = "arrow"
         
 
     def redrawAll(mode, canvas):
@@ -274,7 +301,7 @@ def drawGameOver(mode, canvas):
                             mode.margin + mode.gameOverMargin + 140,
                             fill = 'white')
     canvas.create_text(mode.width/2, mode.margin + mode.gameOverMargin + 120,
-                        text=int(mode.runs*mode.strikeRate), 
+                        text=mode.score, 
                         font = "Arial 30 bold")
     for button in mode.gameOverButtons:
         if button.hover:
@@ -313,7 +340,12 @@ def drawScore(mode, canvas):
                         mode.height - mode.lowerMargin + 3* mode.margin,
                         anchor = 'ne', text = f'Strike Rate: {mode.strikeRate}',
                         fill= 'white', font = font)
+    canvas.create_text(mode.width - mode.margin * 2, 
+                        mode.height - mode.lowerMargin + 4* mode.margin,
+                        anchor = 'ne', text = f'High Score: {mode.app.highScore}',
+                        fill= 'white', font = font)
     
+
 
 
 
@@ -325,6 +357,105 @@ def createBorder(mode):
     run6 = Border(6, 'orange', 0, 0, 1/2, 1, 0, 1/5) 
     mode.borders = [out, run1, run2, run4, run6]
 
+class LeaderboardMode(Mode):
+    def appStarted(mode):        
+        mode.cursor = Cursor()
+        mode.margin = 50 
+        home = Button(mode.width/2 - 50, mode.margin + 375, 
+                            mode.width/2 + 50, mode.margin + 425, 
+                            'red', 'black', 'goHome', "Home", 'white')
+        mode.buttons = [home]
+        
+    def redrawAll(mode, canvas):
+        canvas.create_rectangle(0, 0, mode.width, mode.height,
+                                fill = 'black')
+        canvas.create_text(mode.width/2, mode.margin + 30, 
+                            fill='red', text="SWING CRICKET", 
+                            font = "Arial 50 bold")
+        
+        canvas.create_rectangle(mode.width/2 - 200, mode.margin + 100,
+                                mode.width/2 - 150, mode.margin + 120,
+                                outline='white')
+        canvas.create_rectangle(mode.width/2 - 150, mode.margin + 100,
+                                mode.width/2 + 150, mode.margin + 120,
+                                outline='white')
+        canvas.create_rectangle(mode.width/2 + 150, mode.margin + 100,
+                                mode.width/2 + 200, mode.margin + 120,
+                                outline='white')
+        canvas.create_text(mode.width/2 - 175, mode.margin + 110,
+                            fill='white', text = '#', font="Arial 12 bold")
+        canvas.create_text(mode.width/2, mode.margin + 110,
+                        fill='white', text = "Username", font="Arial 12 bold")
+        canvas.create_text(mode.width/2 + 175, mode.margin + 110,
+                            fill='white', text = "Score", font="Arial 12 bold")
+
+        tempLeaderboard = copy.copy(mode.app.leaderboard)
+        index = 0
+        while len(tempLeaderboard) > 0:
+            index += 1
+            maxScore = max(tempLeaderboard)
+            maxName = tempLeaderboard[maxScore]
+            del tempLeaderboard[maxScore]
+
+            # leaderboard position
+            canvas.create_rectangle(mode.width/2 - 200, 
+                                    mode.margin + 100 + index*20,
+                                    mode.width/2 - 150, 
+                                    mode.margin + 120 + index*20,
+                                    outline='white')
+            canvas.create_text(mode.width/2 - 175, mode.margin + 110 + index*20,
+                                    fill='white', text = index)
+            # name
+            canvas.create_rectangle(mode.width/2 - 150, 
+                                    mode.margin + 100 + index*20,
+                                    mode.width/2 + 150, 
+                                    mode.margin + 120 + index*20,
+                                    outline='white')
+            canvas.create_text(mode.width/2, mode.margin + 110 + index*20,
+                                    fill='white', text = maxName)
+            
+            # score
+            canvas.create_rectangle(mode.width/2 + 150, 
+                                    mode.margin + 100 + index*20,
+                                    mode.width/2 + 200, 
+                                    mode.margin + 120 + index*20,
+                                    outline='white')
+            canvas.create_text(mode.width/2 + 175, mode.margin + 110 + index*20,
+                                    fill='white', text = maxScore)
+
+        for button in mode.buttons:
+            if button.hover:
+                color = button.hoverColor
+            else: 
+                color = button.color
+            canvas.create_rectangle(button.x1 - 5, button.y1 -5, button.x2 + 5,
+                                    button.y2 + 5, fill=button.color)
+            canvas.create_rectangle(button.x1, button.y1, button.x2, button.y2, 
+                                    fill=color, width = 0)
+            canvas.create_text((button.x1 + button.x2)/2, (button.y1 + button.y2)/2, 
+                                    fill=button.textColor, text=button.text, 
+                                    font = "Arial 20 bold")
+        canvas.config(cursor=mode.cursor.type)     
+      
+    def mouseMoved(mode, event):
+        mode.cursor.x = event.x
+        mode.cursor.y = event.y
+        mode.cursor.type = 'arrow'
+        for button in mode.buttons:
+            if button.inButton(mode.cursor.x, mode.cursor.y):
+                button.hover = True
+                mode.cursor.type = "hand"
+            else:
+                button.hover = False
+          
+    def mousePressed(mode, event):
+        for button in mode.buttons:
+            if button.inButton(event.x, event.y):
+               if button.onClick == 'goHome':
+                   mode.appStarted()
+                   mode.app.setActiveMode(mode.app.splashScreenMode)
+
+
 
 ###############################################################################
 # App setup from 
@@ -332,8 +463,14 @@ def createBorder(mode):
 ###############################################################################
 class MyModalApp(ModalApp):
     def appStarted(app):
+        app.user = "player1"
+        app.highScore = readHighScore('highScores.txt', app.user)
+        app.leaderboard = readLeaderboardFile("leaderboard.txt")
+        app.learboardLowest = min(app.leaderboard)
+
         app.splashScreenMode = SplashScreenMode()
         app.gameMode = GameMode()
+        app.leaderboardMode = LeaderboardMode()
         app.setActiveMode(app.splashScreenMode)
         app.timerDelay = 1
 

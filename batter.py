@@ -2,6 +2,7 @@ from cmu_112_graphics import *
 from utilities import *
 import math
 import numpy
+from fileMethods import *
 
 class Batter(object):
     batMass = 10
@@ -46,7 +47,25 @@ class Batter(object):
         self.prevPositions = []
 
 def batterOut(mode):
+    mode.score = int(mode.runs*mode.strikeRate)
+    if mode.score > mode.app.learboardLowest or (len(mode.app.leaderboard) < 10 
+                                                and mode.score > 0):
+        name = mode.app.leaderboard.get(mode.score, None)
+        if name == None:
+            mode.app.leaderboard[mode.score] = mode.app.user
+        else:
+            l = name.split(',')
+            if mode.app.user not in l:
+                mode.app.leaderboard[mode.score] = f'{name}, {mode.app.user}'
+        if len(mode.app.leaderboard):
+            del mode.app.leaderboard[min(mode.app.leaderboard)]
+        writeFileFromLeaderboard('leaderboard.txt', mode.app.leaderboard)
+        mode.app.learboardLowest = min(mode.app.leaderboard)
+    if mode.score > mode.app.highScore:
+        mode.app.highScore = mode.score
+        writeHighScore(mode.app.user, mode.score, "highScores.txt")
     mode.gameOver = True
+    
 
 def getDimensions(mode):
     leftEdge = mode.margin
