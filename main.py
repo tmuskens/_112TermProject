@@ -2,6 +2,10 @@
 
 import math, copy, random
 import time
+###############################################################################
+# CMU 112 Graphics from https://www.cs.cmu.edu/~112/notes/cmu_112_graphics.py
+# All associated functions from this module are attributed to CMU 112 Graphics
+###############################################################################
 from cmu_112_graphics import *
 
 from utilities import *
@@ -9,16 +13,9 @@ from ball import *
 from batter import *
 from stumps import *
 
-class SplashScreenMode(Mode):
-    def redrawAll(mode, canvas):
-        font = 'Arial 26 bold'
-        canvas.create_text(mode.width/2, 150, text='Little Master Cricket!', font=font)
-      
-    def keyPressed(mode, event):
-        mode.app.setActiveMode(mode.app.gameMode)
-
 class Button(object):
-    def __init__(self, x1, y1, x2, y2, color, hoverColor, onClick, text, textColor):
+    def __init__(self, x1, y1, x2, y2, color, hoverColor, onClick, 
+                    text, textColor):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
@@ -28,6 +25,7 @@ class Button(object):
         self.text = text
         self.textColor = textColor
         self.onClick = onClick
+        self.hover = False
     
     def inButton(self, x, y):
         if self.x1 < x < self.x2 and self.y1 < y < self.y2:
@@ -35,10 +33,75 @@ class Button(object):
         else:
             return False
 
+class Border(object):
+    def __init__(self, runs, color, leftStart, leftEnd, topStart, 
+                    topEnd, rightStart, rightEnd):
+        self.runs = runs
+        self.color = color
+        self.topStart = topStart
+        self.topEnd = topEnd
+        self.rightStart = rightStart
+        self.rightEnd = rightEnd
+        self.leftStart = leftStart
+        self.leftEnd = leftEnd
+
 class Cursor(object):
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
+        self.type = 'arrow'
+
+###############################################################################
+# Splash Screen Mode Class from 
+# https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
+###############################################################################
+class SplashScreenMode(Mode):
+    def appStarted(mode):
+        mode.cursor = Cursor()
+        mode.margin = 50 
+        playButton = Button(mode.width/2 - 50, mode.margin + 200, 
+                            mode.width/2 + 50, mode.margin + 250, 
+                            'red', 'black', 'playGame', "PLAY", 'white')
+        mode.buttons = [playButton]
+        
+
+    def redrawAll(mode, canvas):
+        canvas.create_rectangle(0, 0, mode.width, mode.height,
+                                fill = 'black')
+        canvas.create_text(mode.width/2, mode.margin + 30, 
+                            fill='red', text="SWING CRICKET", 
+                            font = "Arial 50 bold")
+        for button in mode.buttons:
+            if button.hover:
+                color = button.hoverColor
+            else: 
+                color = button.color
+            canvas.create_rectangle(button.x1 - 5, button.y1 -5, button.x2 + 5,
+                                    button.y2 + 5, fill=button.color)
+            canvas.create_rectangle(button.x1, button.y1, button.x2, button.y2, 
+                                    fill=color, width = 0)
+            canvas.create_text((button.x1 + button.x2)/2, (button.y1 + button.y2)/2, 
+                                    fill=button.textColor, text=button.text, 
+                                    font = "Arial 20 bold")
+        canvas.config(cursor=mode.cursor.type)     
+      
+    def mouseMoved(mode, event):
+        mode.cursor.x = event.x
+        mode.cursor.y = event.y
+        for button in mode.buttons:
+            if button.inButton(mode.cursor.x, mode.cursor.y):
+                button.hover = True
+                mode.cursor.type = "hand"
+            else:
+                button.hover = False
+                mode.cursor.type = "arrow"
+          
+    def mousePressed(mode, event):
+        for button in mode.buttons:
+            if button.inButton(event.x, event.y):
+                if button.onClick == 'playGame':
+                    mode.app.setActiveMode(mode.app.gameMode)
+                    restartGame(mode)
 
 def restartGame(mode):
     mode.gameOver = False
@@ -50,6 +113,10 @@ def restartGame(mode):
     mode.strikeRate = 0
     return mode.gameOver
 
+###############################################################################
+# Game Mode Class from 
+# https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
+###############################################################################
 class GameMode(Mode):
     def appStarted(mode):
 
@@ -107,6 +174,8 @@ class GameMode(Mode):
                 if button.inButton(event.x, event.y):
                     if button.onClick == 'restartGame':
                         restartGame(mode)
+                    elif button.onClick == 'goHome':
+                        mode.app.setActiveMode(mode.app.splashScreenMode)
 
     def timerFired(mode):
         if (not mode.paused) and (not mode.gameOver): 
@@ -137,7 +206,8 @@ class GameMode(Mode):
                                 mode.frameHeight * border.rightStart, mode.width, 
                                 mode.frameHeight * border.rightEnd, 
                                 fill = border.color, width = 0)
-        canvas.create_rectangle(0, mode.frameHeight, mode.width, mode.height, fill = 'black')
+        canvas.create_rectangle(0, mode.frameHeight, mode.width, mode.height, 
+                                fill = 'black')
 
     @staticmethod
     def drawRunsLabels(mode, canvas):
@@ -145,16 +215,30 @@ class GameMode(Mode):
             canvas.create_oval(label.x - label.radius, label.y - label.radius, 
                                 label.x + label.radius, label.y + label.radius,
                                 fill = label.color)
-            canvas.create_text(label.x, label.y, text = label.runs, fill = 'white', font = f'calibri {int(label.size)} bold')
+            canvas.create_text(label.x, label.y, text = label.runs, 
+                                fill = 'white', 
+                                font = f'calibri {int(label.size)} bold')
 
 
     def mouseMoved(mode, event):
         mode.cursor.x = event.x
         mode.cursor.y = event.y
+        if not mode.gameOver:
+            mode.cursor.type = 'arrow'
+        else:
+            for button in mode.gameOverButtons:
+                if button.inButton(mode.cursor.x, mode.cursor.y):
+                    button.hover = True
+                    mode.cursor.type = "hand"
+                else:
+                    button.hover = False
+                    mode.cursor.type = "arrow"
+        
 
     def redrawAll(mode, canvas):
-        print(mode.gameOver)
-        canvas.create_rectangle(0, 0, mode.width, mode.height, fill = 'light blue')
+        canvas.config(cursor=mode.cursor.type)
+        canvas.create_rectangle(0, 0, mode.width, mode.height, 
+                                fill = 'light blue')
         drawBatter(mode, canvas)
         drawStumps(mode, canvas)
         drawBalls(mode, canvas)
@@ -163,6 +247,7 @@ class GameMode(Mode):
         drawScore(mode, canvas)
         if mode.gameOver:
             drawGameOver(mode, canvas)
+        
 
 def updateLabels(mode):
     for label in mode.runsLabels:
@@ -192,8 +277,14 @@ def drawGameOver(mode, canvas):
                         text=int(mode.runs*mode.strikeRate), 
                         font = "Arial 30 bold")
     for button in mode.gameOverButtons:
+        if button.hover:
+            color = button.hoverColor
+        else:
+            color = button.color
+        canvas.create_rectangle(button.x1 - 5, button.y1 - 5, button.x2 + 5, 
+                                button.y2 + 5, fill=button.color)
         canvas.create_rectangle(button.x1, button.y1, button.x2, button.y2, 
-                                fill=button.color)
+                                fill=color, width = 0)
         canvas.create_text((button.x1 + button.x2)/2, (button.y1 + button.y2)/2, 
                                 fill=button.textColor, text=button.text, 
                                 font = "Arial 20 bold")                        
@@ -206,13 +297,13 @@ def gameOverButtons(mode):
                     'red', 'black', 'restartGame', "Play Again", 'white')
     home = Button(mode.width/2 + 20, mode.margin + mode.gameOverMargin + 180,
                  2*mode.width/3, mode.margin + mode.gameOverMargin + 240,
-                    'red', 'black', 'n/a', "Home", 'white')
+                    'red', 'black', 'goHome', "Home", 'white')
     mode.gameOverButtons = [playAgain, home]
 
 def drawScore(mode, canvas):
     font = "Arial 18 bold"
     canvas.create_text(mode.margin*2, mode.height - mode.lowerMargin + mode.margin,
-                    fill='red', text="WHACK CRICKET", font = "Arial 50 bold",
+                    fill='red', text="SWING CRICKET", font = "Arial 50 bold",
                     anchor = 'nw')
     canvas.create_text(mode.width - mode.margin * 2, 
                         mode.height - mode.lowerMargin + mode.margin,
@@ -234,22 +325,16 @@ def createBorder(mode):
     run6 = Border(6, 'orange', 0, 0, 1/2, 1, 0, 1/5) 
     mode.borders = [out, run1, run2, run4, run6]
 
-class Border(object):
-    def __init__(self, runs, color, leftStart, leftEnd, topStart, topEnd, rightStart, rightEnd):
-        self.runs = runs
-        self.color = color
-        self.topStart = topStart
-        self.topEnd = topEnd
-        self.rightStart = rightStart
-        self.rightEnd = rightEnd
-        self.leftStart = leftStart
-        self.leftEnd = leftEnd
 
+###############################################################################
+# App setup from 
+# https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
+###############################################################################
 class MyModalApp(ModalApp):
     def appStarted(app):
         app.splashScreenMode = SplashScreenMode()
         app.gameMode = GameMode()
-        app.setActiveMode(app.gameMode)
+        app.setActiveMode(app.splashScreenMode)
         app.timerDelay = 1
 
 app = MyModalApp(width=830, height=515)

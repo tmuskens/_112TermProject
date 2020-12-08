@@ -41,8 +41,10 @@ def bowlBall(mode):
 
 def ballCollision(b1, b2):
     Ball.ballInContact.add((b1,b2))
-
-    #https://www.vobarian.com/collisions/2dcollisions2.pdf
+    ############################################################################
+    # Physics formula from https://www.vobarian.com/collisions/2dcollisions2.pdf
+    ############################################################################
+    
     normal  = (b2.cx - b1.cx, b2.cy - b1.cy) # normal vector
     unitNormal = normal / numpy.sqrt((b2.cx - b1.cx)**2 + (b2.cy - b1.cy)**2) #unit normal vector
     unitTangent = numpy.array((-unitNormal[1],unitNormal[0])) #unit tangent vector
@@ -69,7 +71,8 @@ def checkBallCollision(mode):
         for j in range(i + 1,len(mode.balls)):
             if distance(mode.balls[i].cx, mode.balls[i].cy, 
                         mode.balls[j].cx, mode.balls[j].cy) <= (2 * Ball.radius):
-                if (mode.balls[i], mode.balls[j]) and (mode.balls[j], mode.balls[i]) not in Ball.ballInContact:
+                if (mode.balls[i], mode.balls[j]) and (mode.balls[j], 
+                            mode.balls[i]) not in Ball.ballInContact:
                     ballCollision(mode.balls[i], mode.balls[j])
             else:
                 if (mode.balls[i], mode.balls[j]) in Ball.ballInContact:
@@ -83,15 +86,18 @@ def batBallCollision(batter, ball, mode):
     v0 = distance(ball.dx, 0, ball.dy, 0) # scalar speed of ball
 
     V0top = distance(batter.handleTopX, batter.handleTopY, batter.prevPositions[0][0], 
-                    batter.prevPositions[0][1]) * (1000/(mode.timerDelay * 10 * len(batter.prevPositions))) # scalar speed of the bat handle
+                    batter.prevPositions[0][1]) * (1000/(mode.timerDelay * \
+                    10 * len(batter.prevPositions))) # scalar speed of the bat handle
     V0bottom = distance(batter.toeX, batter.toeY, batter.prevPositions[0][2],   
-                        batter.prevPositions[0][3]) * (1000/(mode.timerDelay * 10 * len(batter.prevPositions))) # scalar speed of bat toe
+                        batter.prevPositions[0][3]) * (1000/(mode.timerDelay * \
+                        10 * len(batter.prevPositions))) # scalar speed of bat toe
     dTop = distance(ball.cx, batter.handleTopX, ball.cy, batter.handleTopY) # distance between ball and top of bat
     dBottom = distance(ball.cx, batter.toeX, ball.cy, batter.toeY) # distance between ball and bottom of bat
     dTotal = dTop + dBottom
     V0 = (dTop/dTotal) * V0top + (dBottom/dTotal) * V0bottom # velocity of the bat at the point where the ball is
     v = abs((1/m) * (M*V0) + v0)
-    batNormal = math.atan(-(batter.toeX - batter.handleTopX)/(batter.toeY - batter.handleTopY))
+    batNormal = math.atan(-(batter.toeX - batter.handleTopX)/(batter.toeY - \
+                                                            batter.handleTopY))
     
     ballAngle = math.atan(ball.dy/ball.dx)
     if batNormal < 0:

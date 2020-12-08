@@ -128,7 +128,13 @@ def setBatToePosition(batter, cursor):
     #print(batTopDistance)
     gamma = math.atan((batter.handleTopX - centreX)/(batter.handleTopY - centreY))
     beta = gamma - batAngle
-    zeta = math.asin((batTopDistance * math.sin(beta))/batter.batLength)
+    sinZeta = (batTopDistance * math.sin(beta))/batter.batLength
+    if sinZeta < -1:
+        zeta = -math.pi/2
+    elif sinZeta > 1:
+        zeta = math.pi/2
+    else:
+        zeta = math.asin(sinZeta)
     alpha = math.pi - (beta + zeta) #angle sum of triangle
     batBottomDistance = ((batter.batLength * math.sin(alpha))/math.sin(beta))
     X = batBottomDistance * math.sin(batAngle)
@@ -220,10 +226,11 @@ def drawBatter(mode, canvas):
                             b.leftHipX - 5, b.leftHipY+ 5, fill='white')
     
     
-    canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, b.leftHipX, b.leftHipY, fill='grey', width = 15) # left shin
-    canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY,b.rightHipX, b.rightHipY, fill='grey', width = 15) # right shin
+    canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, 
+                    b.leftHipX, b.leftHipY, fill='grey', width = 15) # left shin
+    canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY, 
+                        b.rightHipX, b.rightHipY, fill='grey', width = 15) # right shin
 
-    
     # canvas.create_line(b.leftHipX, b.leftHipY, b.leftShoulderX, b.leftShoulderY) #left side
     # canvas.create_line(b.rightHipX, b.rightHipY, b.rightShoulderX, b.rightShoulderY) #right side
     # canvas.create_line(b.leftHipX, b.leftHipY, b.rightHipX, b.rightHipY) # waist
@@ -232,9 +239,8 @@ def drawBatter(mode, canvas):
     # canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, b.rightElbowY, fill = 'green') # right upper arm
     # canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.rightShoulderX, b.rightShoulderY) # shoulder line
 
-
-
-    canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 50, b.rightShoulderX, b.rightShoulderY, fill = 'peach puff')
+    canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 50, b.rightShoulderX, 
+                        b.rightShoulderY, fill = 'peach puff')
 
     # canvas.create_line(b.leftElbowX, b.leftElbowY, b.handleTopX, b.handleTopY, fill = 'red') # left forearm
     # canvas.create_line(b.rightElbowX, b.rightElbowY, b.handleTopX, b.handleTopY, fill = 'red') # right forearm
@@ -246,9 +252,9 @@ def drawBatter(mode, canvas):
     canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, 
                         b.rightElbowY, b.handleTopX, b.handleTopY, 
                         fill='grey', width=10)
-
     
-    angle = ((math.atan((b.toeY - b.handleTopY)/(b.toeX - b.handleTopX))) - math.pi/2) * -180/math.pi
+    angle = ((math.atan((b.toeY - b.handleTopY)/(b.toeX - b.handleTopX))) \
+                                - math.pi/2) * -180/math.pi
     if (b.toeY - b.handleTopY)/(b.toeX - b.handleTopX) < 0: angle -= 180
     #print(angle)
     offset = (angle/90)
@@ -256,6 +262,6 @@ def drawBatter(mode, canvas):
     y = 50 - 50 * math.cos(angle * math.pi/180)
     canvas.create_image(b.handleTopX + x, b.handleTopY - y, anchor = 'n',
                         image=ImageTk.PhotoImage(mode.batImage.rotate(angle)))
+                        
     #canvas.create_line(b.handleTopX, b.handleTopY, b.toeX, b.toeY, width=3, fill='orange')
-
     #canvas.create_image((b.leftShoulderX + b.rightShoulderX)/2, b.rightShoulderY -20, image=ImageTk.PhotoImage(mode.helmetImage))
