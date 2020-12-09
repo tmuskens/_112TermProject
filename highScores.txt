@@ -1,2 +1,5 @@
-player1:15
-trent:21
+player1:150
+trent:100
+trentino:220
+tmuskens:87
+demo:64

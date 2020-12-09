@@ -1,9 +1,12 @@
+#Controls for batter body and bat movement and drawing
+
 from cmu_112_graphics import *
 from utilities import *
 import math
 import numpy
 from fileMethods import *
 
+#batter class
 class Batter(object):
     batMass = 10
     def __init__(self, mode):
@@ -46,6 +49,7 @@ class Batter(object):
 
         self.prevPositions = []
 
+# run when the batter gets out
 def batterOut(mode):
     mode.score = int(mode.runs*mode.strikeRate)
     if mode.score > mode.app.learboardLowest or (len(mode.app.leaderboard) < 10 
@@ -57,7 +61,7 @@ def batterOut(mode):
             l = name.split(',')
             if mode.app.user not in l:
                 mode.app.leaderboard[mode.score] = f'{name}, {mode.app.user}'
-        if len(mode.app.leaderboard):
+        if len(mode.app.leaderboard) > 10:
             del mode.app.leaderboard[min(mode.app.leaderboard)]
         writeFileFromLeaderboard('leaderboard.txt', mode.app.leaderboard)
         mode.app.learboardLowest = min(mode.app.leaderboard)
@@ -66,7 +70,7 @@ def batterOut(mode):
         writeHighScore(mode.app.user, mode.score, "highScores.txt")
     mode.gameOver = True
     
-
+#gets dimensions of playing area
 def getDimensions(mode):
     leftEdge = mode.margin
     rightEdge = mode.width - mode.margin
@@ -76,8 +80,8 @@ def getDimensions(mode):
     gameHeight = bottomEdge - topEdge
     return leftEdge, rightEdge, topEdge, bottomEdge, gameWidth, gameHeight
 
+# sets knee position given the foot and hip positions
 def setKneePosition(mode, hipX, hipY, footX, footY, shinLength, thighLength):
-
     leftEdge, rightEdge, topEdge, bottomEdge, gameWidth, gameHeight = getDimensions(mode)
     a = shinLength
     b = thighLength
@@ -96,48 +100,134 @@ def setKneePosition(mode, hipX, hipY, footX, footY, shinLength, thighLength):
     kneeY = bottomEdge - y
     return (kneeX, kneeY)
 
-def setElbowPosition(shoulderX, shoulderY, handleTopX, handleTopY, upperArmLength, forearmLength):
+#sets elbow positions given the hands and shoulder positions
+def setElbowPosition(shoulderX, shoulderY, handleTopX, handleTopY, upperArmLength, forearmLength, side):
     a = upperArmLength
     b = forearmLength
     c = distance(shoulderX, shoulderY, handleTopX, handleTopY)
     angleC = cosineRuleAngle(a, b, c)
     angleB = sineRuleAngle(c, angleC, b) 
-    phi = math.atan((shoulderX - handleTopX)/(shoulderY - handleTopY))
-    #print(shoulderY, handleTopY, shoulderX - handleTopX)
-    theta = phi + angleB
-    #print(angleC, angleB, phi)
+    if (shoulderY - handleTopY) == 0:
+        if (shoulderY - handleTopY) < 0:
+            phi = -math.pi/2
+        else:
+            phi = math.pi/2
+    else:
+        phi = math.atan((shoulderX - handleTopX)/(shoulderY - handleTopY))
+    
+    if side == 'right':
+        theta = phi + angleB
+    else:
+        theta = phi - angleB
     x = upperArmLength * math.sin(theta)
     y = upperArmLength * math.cos(theta)
-    #print(x, y)
     elbowX = shoulderX + x
     elbowY = shoulderY + y
     return elbowX, elbowY
 
+# sets bat position based on cursor
 def setBatPosition(batter, cursor):
-    if cursor.y > batter.leftShoulderY:
-        if cursor.x > batter.rightShoulderX:
-            if distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY) > 80:
+    if cursor.x > batter.rightShoulderX:
+        #cursor is to the right of the right shoulder
+        if distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY) > 80:
+            #not within 80 of left shoulder
+            try:
                 theta = math.atan((cursor.y - batter.leftShoulderY)/(cursor.x - batter.leftShoulderX))
-                x = 80 * math.cos(theta)
-                y = 80 * math.sin(theta)
-                batter.leftElbowX = batter.leftShoulderX + x/2
-                batter.leftElbowY = batter.leftShoulderY + y/2
-                batter.handleTopX = batter.leftShoulderX + x
-                batter.handleTopY = batter.leftShoulderY + y
-                batter.rightElbowX, batter.rightElbowY = setElbowPosition(batter.rightShoulderX, 
-                                                        batter.rightShoulderY, batter.handleTopX, 
-                                                        batter.handleTopY, batter.upperArmLength, 
-                                                        batter.foreArmLength)
-    else: 
-        pass    
+            except:
+                theta = math.atan((cursor.y - batter.leftShoulderY))
+            x = 80 * math.cos(theta)
+            y = 80 * math.sin(theta) if cursor.y > batter.leftShoulderY else 0
+            batter.leftElbowX = batter.leftShoulderX + x/2
+            batter.leftElbowY = batter.leftShoulderY + y/2
+            batter.handleTopX = batter.leftShoulderX + x
+            batter.handleTopY = batter.leftShoulderY + y
+            batter.rightElbowX, batter.rightElbowY = setElbowPosition(batter.rightShoulderX, 
+                                                    batter.rightShoulderY, batter.handleTopX, 
+                                                    batter.handleTopY, batter.upperArmLength, 
+                                                    batter.foreArmLength, 'right')
+        else:
+            d = distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY)
+            try:
+                theta = math.atan((cursor.y - batter.leftShoulderY)/(cursor.x - batter.leftShoulderX))
+            except:
+                theta = math.atan((cursor.y - batter.leftShoulderY))
+            x = d * math.cos(theta)
+            y = d * math.sin(theta) if cursor.y > batter.leftShoulderY else 0
+            batter.handleTopX = batter.leftShoulderX + x
+            batter.handleTopY = batter.leftShoulderY + y
+            batter.rightElbowX, batter.rightElbowY = setElbowPosition(batter.rightShoulderX, 
+                                                    batter.rightShoulderY, batter.handleTopX, 
+                                                    batter.handleTopY, batter.upperArmLength, 
+                                                    batter.foreArmLength, 'right')
+            batter.leftElbowX, batter.leftElbowY = setElbowPosition(batter.leftShoulderX, 
+                                                batter.leftShoulderY, batter.handleTopX, 
+                                                batter.handleTopY, batter.upperArmLength, 
+                                                batter.foreArmLength, 'left')
+    
+    elif batter.leftShoulderX <= cursor.x <= batter.rightShoulderX:   #Cursor is between the two shoulders
+        if distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY) < 80 and \
+            distance(cursor.x, cursor.y, batter.rightShoulderX, batter.rightShoulderY): # cursor is within the arc of both shoulders
+            d = distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY)
+            try:
+                theta = math.atan((cursor.y - batter.leftShoulderY)/(cursor.x - batter.leftShoulderX))
+            except:
+                theta = math.atan((cursor.y - batter.leftShoulderY))
+            x = d * math.cos(theta)
+            y = d * math.sin(theta) if cursor.y > batter.leftShoulderY else 0
+            batter.handleTopX = batter.leftShoulderX + x
+            batter.handleTopY = batter.leftShoulderY + y
+            batter.rightElbowX, batter.rightElbowY = setElbowPosition(batter.rightShoulderX, 
+                                                    batter.rightShoulderY, batter.handleTopX, 
+                                                    batter.handleTopY, batter.upperArmLength, 
+                                                    batter.foreArmLength, 'right')
+            batter.leftElbowX, batter.leftElbowY = setElbowPosition(batter.leftShoulderX, 
+                                                batter.leftShoulderY, batter.handleTopX, 
+                                                batter.handleTopY, batter.upperArmLength, 
+                                                batter.foreArmLength, 'left')
+    else: #cursor is to the left of the left shoulder
+        if distance(cursor.x, cursor.y, batter.rightShoulderX, batter.rightShoulderY) > 80:
+            # not within 80 of right shoulder
+            try:
+                theta = math.atan((cursor.y - batter.rightShoulderY)/(cursor.x - batter.rightShoulderX))
+            except:
+                theta = math.atan((cursor.y - batter.rightShoulderY))
+            x = -80 * math.cos(theta)
+            y = -80 * math.sin(theta) if cursor.y > batter.leftShoulderY else 0
+            batter.rightElbowX = batter.rightShoulderX + x/2
+            batter.rightElbowY = batter.rightShoulderY + y/2
+            batter.handleTopX = batter.rightShoulderX + x
+            batter.handleTopY = batter.rightShoulderY + y
+            batter.leftElbowX, batter.leftElbowY = setElbowPosition(batter.leftShoulderX, 
+                                                batter.leftShoulderY, batter.handleTopX, 
+                                                batter.handleTopY, batter.upperArmLength, 
+                                                batter.foreArmLength, 'left')
+        else:
+            d = distance(cursor.x, cursor.y, batter.leftShoulderX, batter.leftShoulderY)
+            try:
+                theta = math.atan((cursor.y - batter.leftShoulderY)/(cursor.x - batter.leftShoulderX))
+            except:
+                theta = math.atan((cursor.y - batter.leftShoulderY))
+            x = -d * math.cos(theta)
+            y = -d * math.sin(theta) if cursor.y > batter.leftShoulderY else 0
+            batter.handleTopX = batter.leftShoulderX + x
+            batter.handleTopY = batter.leftShoulderY + y
+            batter.rightElbowX, batter.rightElbowY = setElbowPosition(batter.rightShoulderX, 
+                                                    batter.rightShoulderY, batter.handleTopX, 
+                                                    batter.handleTopY, batter.upperArmLength, 
+                                                    batter.foreArmLength, 'right')
+            batter.leftElbowX, batter.leftElbowY = setElbowPosition(batter.leftShoulderX, 
+                                                batter.leftShoulderY, batter.handleTopX, 
+                                                batter.handleTopY, batter.upperArmLength, 
+                                                batter.foreArmLength, 'left')
+            
     
     setBatToePosition(batter, cursor)
 
+#sets the angle and position of the bat
 def setBatToePosition(batter, cursor):
     #print(cursor.y, batter.rightShoulderY)
-    if batter.rightShoulderY > cursor.y:
-        #cursorY = batter.rightShoulderY
-        cursorY = cursor.y
+    if cursor.y < batter.leftShoulderY:
+        cursorY = batter.leftShoulderY
     else:    
         cursorY = cursor.y
     centreX = (batter.leftShoulderX + batter.rightShoulderX)/2
@@ -147,21 +237,27 @@ def setBatToePosition(batter, cursor):
     #print(batTopDistance)
     gamma = math.atan((batter.handleTopX - centreX)/(batter.handleTopY - centreY))
     beta = gamma - batAngle
-    sinZeta = (batTopDistance * math.sin(beta))/batter.batLength
-    if sinZeta < -1:
-        zeta = -math.pi/2
-    elif sinZeta > 1:
-        zeta = math.pi/2
+    
+    if beta == 0:
+        X = (batter.batLength + batTopDistance) * math.sin(batAngle)
+        Y = (batter.batLength + batTopDistance) * math.cos(batAngle)
     else:
-        zeta = math.asin(sinZeta)
-    alpha = math.pi - (beta + zeta) #angle sum of triangle
-    batBottomDistance = ((batter.batLength * math.sin(alpha))/math.sin(beta))
-    X = batBottomDistance * math.sin(batAngle)
-    Y = batBottomDistance * math.cos(batAngle)
+        sinZeta = (batTopDistance * math.sin(beta))/batter.batLength
+        if sinZeta < -1:
+            zeta = -math.pi/2
+        elif sinZeta > 1:
+            zeta = math.pi/2
+        else:
+            zeta = math.asin(sinZeta)
+        alpha = math.pi - (beta + zeta) #angle sum of triangle
+        batBottomDistance = ((batter.batLength * math.sin(alpha))/math.sin(beta))
+        X = batBottomDistance * math.sin(batAngle)
+        Y = batBottomDistance * math.cos(batAngle)
+    
     batter.toeX = centreX + X
     batter.toeY = centreY + Y
 
-
+#updaetd batters  position every timer fired
 def updateBatter(mode):
     batter = mode.batter
     batter.prevPositions.append((batter.handleTopX, batter.handleTopY, batter.toeX, batter.toeY))
@@ -171,37 +267,30 @@ def updateBatter(mode):
     leftEdge, rightEdge, topEdge, bottomEdge, gameWidth, gameHeight = getDimensions(mode)
     x = 0
     y = 0
-    if cursor.x > leftEdge + (gameWidth / 2):
-        # batter.rightHipX = batter.rightFootX + 23
-        # batter.rightHipY = bottomEdge - 60
+    if cursor.x > leftEdge + (gameWidth / 2): #right half of screen => max x
         x = 39
-    elif cursor.x < leftEdge:
+    elif cursor.x < leftEdge: # over left margin => min x
         x = -87
-    else: 
-        # batter.rightHipX = batter.rightFootX - 17
-        # batter.rightHipY = bottomEdge - 88
+    else: # within "field of play"
         x = (-leftEdge + cursor.x)/(gameWidth/2)*126 - 87
+    if x < -39:
+        x = -39 #set -39 as min x
     batter.rightHipX = batter.rightFootX + x
-    if cursor.y < bottomEdge - gameHeight/4:
+    if cursor.y < bottomEdge - gameHeight/4: # above bottom quarter => min y
         if x > -8:
             y = (8100 - (-50 - x)**2)**0.5 + 10
         else:
             y = (8100 - x**2)**0.5
-    elif bottomEdge - gameHeight/4 < cursor.y < bottomEdge:
+    elif bottomEdge - gameHeight/4 <= cursor.y <= bottomEdge: # within field of play
         if x > - 8:
             ymax = ((8100 - (-50 - x)**2)**0.5) + 10
         else:
             ymax = ((8100 - x**2)**0.5)
         y = (((bottomEdge - cursor.y)/(gameHeight/4)) * (ymax- 20) + 20)
-        # print(bottomEdge, cursor.y, gameHeight/2)
-        # print(ymax)
-    elif cursor.y > bottomEdge:
+    elif cursor.y > bottomEdge: # below bottom edge => max y
         y = 20
     x, y = int(x), int(y)
-    # print(x,y)
-    # print(-50-x, y-10)
     batter.rightHipY = bottomEdge - y
-
     setBatterBody(batter)
 
     #knee position calculation
@@ -214,6 +303,7 @@ def updateBatter(mode):
     
     setBatPosition(batter, cursor)
 
+#sets batter body based on right hip
 def setBatterBody(batter):
     batter.leftHipX = batter.rightHipX - batter.hipWidth
     batter.leftHipY = batter.rightHipY + batter.angle
@@ -225,62 +315,103 @@ def setBatterBody(batter):
 
 # returns y for each x
 def batEquationFunction(batter, x):
-    gradient = (batter.toeY - batter.handleTopY)/(batter.toeX - batter.handleTopX)
+    try:
+        gradient = (batter.toeY - batter.handleTopY)/(batter.toeX - batter.handleTopX)
+    except:
+        gradient = (batter.toeY - batter.handleTopY)
     yInt = batter.toeY - gradient*batter.toeX
     return (gradient * x) + yInt
 
+# returns x for each y
+def inverseBatEquationFunction(batter, y):
+    try:
+        gradient = (batter.toeY - batter.handleTopY)/(batter.toeX - batter.handleTopX)
+    except:
+        gradient = (batter.toeY - batter.handleTopY)
+    yInt = batter.toeY - gradient*batter.toeX
+    return (y - yInt)/gradient
+
 # returns equation where Ax + By + C = 0
 def batEquation(batter):
-    gradient = (batter.toeY - batter.handleTopY)/(batter.toeX - batter.handleTopX)
+    try:
+        gradient = (batter.toeY - batter.handleTopY)/(batter.toeX - batter.handleTopX)
+    except:
+        gradient = (batter.toeY - batter.handleTopY)
     yInt = batter.toeY - gradient*batter.toeX
     A = gradient
     B = -1
     C = yInt
     return A, B, C 
 
+#draws batter
 def drawBatter(mode, canvas):
     b = mode.batter
-    canvas.create_polygon(b.leftShoulderX - 5, b.leftShoulderY - 5, b.rightShoulderX + 5, 
+    if mode.app.graphics:
+        #body
+        canvas.create_image(b.leftHipX - 10, b.leftHipY + 10, anchor = 'sw',
+                        image=ImageTk.PhotoImage(mode.bodyImage))
+        #right upperArm
+        drawMovingImage(canvas, b.rightShoulderX, b.rightShoulderY, b.rightElbowX, b.rightElbowY,  mode.upperArmImage, 25, -5, False)
+        #head
+        canvas.create_image(b.leftHipX - 10, b.leftHipY + 10, anchor = 'sw',
+                        image=ImageTk.PhotoImage(mode.headImage))
+
+        canvas.create_image(b.leftFootX, b.leftFootY, anchor = 'sw',
+                        image=ImageTk.PhotoImage(mode.shoeImage))
+
+        canvas.create_image(b.rightFootX, b.rightFootY, anchor = 'sw',
+                        image=ImageTk.PhotoImage(mode.shoeImage))
+        #left upperArm
+        drawMovingImage(canvas, b.leftShoulderX, b.leftShoulderY, b.leftElbowX, b.leftElbowY,  mode.upperArmImage, 25, -5, True)
+        #left thigh
+        drawMovingImage(canvas, b.leftHipX, b.leftHipY, b.leftKneeX, b.leftKneeY,  mode.thighImage, 30, -10, False)
+        #right thigh
+        drawMovingImage(canvas, b.rightHipX, b.rightHipY, b.rightKneeX, b.rightKneeY,  mode.thighImage, 30, -10, False)
+        #leftPad
+        drawMovingImage(canvas, b.leftKneeX, b.leftKneeY, b.leftFootX, b.leftFootY, mode.padImage, 37, -25, False)
+        #rightPad
+        drawMovingImage(canvas, b.rightKneeX, b.rightKneeY, b.rightFootX, b.rightFootY, mode.padImage, 37, -25, False)
+        #bat
+        drawMovingImage(canvas, b.handleTopX, b.handleTopY, b.toeX, b.toeY, mode.batImage, 50, -20, False)
+        #left forearm
+        drawMovingImage(canvas, b.leftElbowX, b.leftElbowY, b.handleTopX, b.handleTopY + 5, mode.forearmImage, 25, -5, True)
+        #right forearm
+        drawMovingImage(canvas, b.rightElbowX, b.rightElbowY, b.handleTopX, b.handleTopY - 5, mode.forearmImage, 25, -5, True)
+    else:
+        canvas.create_polygon(b.leftShoulderX - 5, b.leftShoulderY - 5, b.rightShoulderX + 5, 
                             b.rightShoulderY - 5, b.rightHipX + 5, b.rightHipY+ 5, 
                             b.leftHipX - 5, b.leftHipY+ 5, fill='white')
-    
-    
-    canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, 
-                    b.leftHipX, b.leftHipY, fill='grey', width = 15) # left shin
-    canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY, 
-                        b.rightHipX, b.rightHipY, fill='grey', width = 15) # right shin
-
-    # canvas.create_line(b.leftHipX, b.leftHipY, b.leftShoulderX, b.leftShoulderY) #left side
-    # canvas.create_line(b.rightHipX, b.rightHipY, b.rightShoulderX, b.rightShoulderY) #right side
-    # canvas.create_line(b.leftHipX, b.leftHipY, b.rightHipX, b.rightHipY) # waist
-
-    # canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, b.leftElbowY, fill = 'green') # left upper arm
-    # canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, b.rightElbowY, fill = 'green') # right upper arm
-    # canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.rightShoulderX, b.rightShoulderY) # shoulder line
-
-    canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 50, b.rightShoulderX, 
+        canvas.create_oval(b.leftShoulderX, b.leftShoulderY - 50, b.rightShoulderX, 
                         b.rightShoulderY, fill = 'peach puff')
-
-    # canvas.create_line(b.leftElbowX, b.leftElbowY, b.handleTopX, b.handleTopY, fill = 'red') # left forearm
-    # canvas.create_line(b.rightElbowX, b.rightElbowY, b.handleTopX, b.handleTopY, fill = 'red') # right forearm
-
-    canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, 
+    
+        canvas.create_line(b.leftFootX, b.leftFootY, b.leftKneeX, b.leftKneeY, 
+                        b.leftHipX, b.leftHipY, fill='grey', width = 15) # left shin
+        canvas.create_line(b.rightFootX, b.rightFootY, b.rightKneeX, b.rightKneeY, 
+                            b.rightHipX, b.rightHipY, fill='grey', width = 15) # right shin
+        canvas.create_line(b.leftShoulderX, b.leftShoulderY, b.leftElbowX, 
                         b.leftElbowY, b.handleTopX, b.handleTopY, 
                         fill='grey', width=10)
     
-    canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, 
+        canvas.create_line(b.rightShoulderX, b.rightShoulderY, b.rightElbowX, 
                         b.rightElbowY, b.handleTopX, b.handleTopY, 
                         fill='grey', width=10)
-    
-    angle = ((math.atan((b.toeY - b.handleTopY)/(b.toeX - b.handleTopX))) \
-                                - math.pi/2) * -180/math.pi
-    if (b.toeY - b.handleTopY)/(b.toeX - b.handleTopX) < 0: angle -= 180
-    #print(angle)
-    offset = (angle/90)
-    x = 50 * math.sin(angle * math.pi/180)
-    y = 50 - 50 * math.cos(angle * math.pi/180)
-    canvas.create_image(b.handleTopX + x, b.handleTopY - y, anchor = 'n',
-                        image=ImageTk.PhotoImage(mode.batImage.rotate(angle)))
-                        
-    #canvas.create_line(b.handleTopX, b.handleTopY, b.toeX, b.toeY, width=3, fill='orange')
-    #canvas.create_image((b.leftShoulderX + b.rightShoulderX)/2, b.rightShoulderY -20, image=ImageTk.PhotoImage(mode.helmetImage))
+        #canvas.create_line(b.handleTopX, b.handleTopY, b.toeX, b.toeY, width=3, fill='orange')
+        #bat
+        drawMovingImage(canvas, b.handleTopX, b.handleTopY, b.toeX, b.toeY, mode.batImage, 50, -20, False)
+        
+#draw image function to rotate body parts 
+def drawMovingImage(canvas, x1, y1, x2, y2, image, length, offset, condition):
+    try:
+        gradient = (y2 - y1)/(x2- x1)
+    except:
+        gradient = (y2 - y1)
+    angle = ((math.atan(gradient) - math.pi/2) * -180/math.pi)
+    if gradient < 0 and y1 < y2: 
+        angle += 180
+    if x2 < x1 and y1 > y2 and condition:
+        angle -= 180
+    x = (length + offset) * math.sin(angle * math.pi/180)
+    y = length - (length + offset) * math.cos(angle * math.pi/180)
+    canvas.create_image(x1 + x, y1 - y, anchor = 'n',
+                        image=ImageTk.PhotoImage(image.rotate(angle)))
+

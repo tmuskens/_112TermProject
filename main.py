@@ -1,5 +1,5 @@
 # Trent Muskens Term Project
-
+#main file - run this file 
 import math, copy, random
 import time
 ###############################################################################
@@ -14,6 +14,7 @@ from batter import *
 from stumps import *
 from fileMethods import *
 
+#button class
 class Button(object):
     def __init__(self, x1, y1, x2, y2, color, hoverColor, onClick, 
                     text, textColor):
@@ -28,12 +29,13 @@ class Button(object):
         self.onClick = onClick
         self.hover = False
     
+    #checks if x,y is in a button
     def inButton(self, x, y):
         if self.x1 < x < self.x2 and self.y1 < y < self.y2:
             return True
         else:
             return False
-
+#game border class
 class Border(object):
     def __init__(self, runs, color, leftStart, leftEnd, topStart, 
                     topEnd, rightStart, rightEnd):
@@ -46,6 +48,7 @@ class Border(object):
         self.leftStart = leftStart
         self.leftEnd = leftEnd
 
+#cursor class
 class Cursor(object):
     def __init__(self, x=0, y=0):
         self.x = x
@@ -72,7 +75,11 @@ class SplashScreenMode(Mode):
                             mode.width/2 + 275, mode.margin + 300, 
                             'red', 'black', 'showLeaderboard', "Leaderboard", 
                             'white')
-        mode.splashButtons = [playButton, changeUser, leaderboard]
+        graphics = "Graphics: Fancy" if mode.app.graphics else "Graphics: Fast"
+        graphicsButton = Button(mode.width/2 - 75, mode.margin + 400, 
+                            mode.width/2 + 75, mode.margin + 450, 
+                            'red', 'black', 'toggleGraphics', graphics, 'white')
+        mode.splashButtons = [playButton, changeUser, leaderboard, graphicsButton]
         
 
     def redrawAll(mode, canvas):
@@ -120,10 +127,16 @@ class SplashScreenMode(Mode):
                     inputUser(mode)
                 elif button.onClick == 'showLeaderboard':
                     mode.app.setActiveMode(mode.app.leaderboardMode)
-
+                elif button.onClick == "toggleGraphics":
+                    mode.app.graphics = not mode.app.graphics
+                    if mode.app.graphics:
+                        mode.splashButtons[3].text = "Graphics: Fancy"
+                    else: 
+                        mode.splashButtons[3].text = "Graphics: Fast"
+#change username function
 def inputUser(mode):
     prevName = mode.app.user
-    mode.app.user = mode.getUserInput('Username:')
+    mode.app.user = mode.getUserInput('Username:') #get user input from CMU 112 graphics
     if (mode.app.user == None):
         mode.app.user = prevName
     else:
@@ -131,6 +144,7 @@ def inputUser(mode):
         mode.app.leaderboard = readLeaderboardFile("leaderboard.txt")
         mode.app.learboardLowest = min(mode.app.leaderboard)
 
+#restart game function
 def restartGame(mode):
     mode.gameOver = False
     mode.paused = False
@@ -141,6 +155,52 @@ def restartGame(mode):
     mode.strikeRate = 0
     return mode.gameOver
 
+#loads images
+def loadImages(mode):
+    # All unreferenced images were drawn by me
+    ###########################################################################
+    # Image Reference
+    # https://www.clipartkey.com/mpngs/m/40-401897_cricket-ball-png-clip-art-cricket-ball-image.png
+    ###########################################################################
+    ballSize = (Ball.radius * 2, Ball.radius * 2)
+    ball = mode.loadImage("images/ball.png")
+    mode.ballImage = ball.resize(ballSize,Image.ANTIALIAS)
+
+    bodySize = (60, 130)
+    body = mode.loadImage("images/body2.png")
+    mode.bodyImage = body.resize(bodySize,Image.ANTIALIAS)
+    
+    head = mode.loadImage("images/head.png")
+    mode.headImage = head.resize(bodySize,Image.ANTIALIAS)
+
+    ###########################################################################
+    # Image Reference
+    # https://www.123rf.com/photo_96155158_stock-vector-cricket-bat-set-on-a-white-background-vector-illustration-.html
+    ###########################################################################
+    batSize = (120, 120)
+    bat = mode.loadImage("images/bat.png")
+    mode.batImage = bat.resize(batSize,Image.ANTIALIAS)
+    
+    shoeSize = (20, 10)
+    shoe = mode.loadImage("images/shoe.png")
+    mode.shoeImage = shoe.resize(shoeSize,Image.ANTIALIAS)
+
+    padSize = (74, 74)
+    pad = mode.loadImage("images/pad3.png")
+    mode.padImage = pad.resize(padSize,Image.ANTIALIAS)
+
+    thighSize = (60, 60)
+    thigh = mode.loadImage("images/thigh.png")
+    mode.thighImage = thigh.resize(thighSize,Image.ANTIALIAS)
+    
+    upperArmSize = (50, 50)
+    upperArm = mode.loadImage("images/upperArm.png")
+    mode.upperArmImage = upperArm.resize(upperArmSize, Image.ANTIALIAS)
+    
+    forearmSize = (50, 50)
+    forearm = mode.loadImage("images/forearm.png")
+    mode.forearmImage = forearm.resize(forearmSize, Image.ANTIALIAS)
+    
 ###############################################################################
 # Game Mode Class from 
 # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
@@ -153,27 +213,15 @@ class GameMode(Mode):
         mode.balls = []
         mode.gravity = 90
         mode.count = 0
-        mode.margin = 15
+        mode.margin = 20
         mode.lowerMargin = 100
         mode.gameOverMargin = 50
-
+        loadImages(mode)
         mode.frameHeight = mode.height - mode.lowerMargin
         mode.timerDelay = 1
         mode.runs = 0
         mode.ballsBowled = 0
         mode.strikeRate = 0
-
-        ballSize = (Ball.radius * 2, Ball.radius * 2)
-        ball = mode.loadImage("images/ball.png")
-        mode.ballImage = ball.resize(ballSize,Image.ANTIALIAS)
-        
-        batSize = (100, 100)
-        bat = mode.loadImage("images/bat.png")
-        mode.batImage = bat.resize(batSize,Image.ANTIALIAS)
-
-        helmetSize = (40, 34)
-        helmet = mode.loadImage("images/helmet.png")
-        mode.helmetImage = helmet.resize(helmetSize,Image.ANTIALIAS)
 
         mode.cursor = Cursor()
         mode.batter = Batter(mode)
@@ -184,19 +232,24 @@ class GameMode(Mode):
 
         mode.runsLabels = []
 
+
     def keyPressed(mode, event):
         if event.key == "p":
             mode.paused = not mode.paused
         if event.key == "s":
             GameMode.doStep(mode)
+        if event.key == "d":
+            newBall = Ball(mode.cursor.x, mode.cursor.y)
+            mode.balls.append(newBall)
         if event.key == "g":
             batterOut(mode)
 
 
     def mousePressed(mode, event):
-        if not mode.gameOver:                
-            newBall = Ball(event.x, event.y)
-            mode.balls.append(newBall)
+        if not mode.gameOver:    
+            pass            
+            #newBall = Ball(event.x, event.y)
+            #mode.balls.append(newBall)
         else:
             for button in mode.gameOverButtons:
                 if button.inButton(event.x, event.y):
@@ -210,7 +263,7 @@ class GameMode(Mode):
         if (not mode.paused) and (not mode.gameOver): 
             GameMode.doStep(mode)
             
-    @staticmethod       
+    @staticmethod #runs when game isnt paused      
     def doStep(mode):
         moveBalls(mode)
         checkBallCollision(mode)
@@ -224,7 +277,9 @@ class GameMode(Mode):
 
     @staticmethod       
     def drawBackground(mode, canvas):
+        font = 'Arial 14 bold'
         for border in mode.borders:
+            color = 'black' if border.color == 'yellow' else 'white'
             canvas.create_rectangle(0, mode.frameHeight * border.leftStart, 
                                 mode.margin, mode.frameHeight * border.leftEnd,
                                 fill = border.color, width = 0)
@@ -235,6 +290,28 @@ class GameMode(Mode):
                                 mode.frameHeight * border.rightStart, mode.width, 
                                 mode.frameHeight * border.rightEnd, 
                                 fill = border.color, width = 0)
+            if border.leftStart != border.leftEnd:
+                canvas.create_text(7, mode.frameHeight * border.leftStart + 2,
+                                    anchor = 'nw', text = border.runs, 
+                                    font = font, fill = color)
+                canvas.create_text(7, mode.frameHeight * border.leftEnd - 2,
+                                    anchor = 'sw', text = border.runs, 
+                                    font = font, fill = color)
+            if border.topStart != border.topEnd:
+                canvas.create_text(mode.width * border.topStart + 7, 2,
+                                    anchor = 'nw', text = border.runs,
+                                    font = font, fill = color)
+                canvas.create_text(mode.width * border.topEnd - 7, 2,
+                                    anchor = 'ne', text = border.runs,
+                                    font = font, fill = color)
+            if border.rightStart != border.rightEnd:
+                canvas.create_text(mode.width - 7, mode.frameHeight * border.rightStart + 2,
+                                    anchor = 'ne', text = border.runs,
+                                    font = font, fill = color)
+                canvas.create_text(mode.width - 7, mode.frameHeight * border.rightEnd - 2,
+                                    anchor = 'se', text = border.runs,
+                                    font = font, fill = color)
+
         canvas.create_rectangle(0, mode.frameHeight, mode.width, mode.height, 
                                 fill = 'black')
 
@@ -266,10 +343,10 @@ class GameMode(Mode):
         canvas.config(cursor=mode.cursor.type)
         canvas.create_rectangle(0, 0, mode.width, mode.height, 
                                 fill = 'light blue')
+        GameMode.drawBackground(mode, canvas)
         drawBatter(mode, canvas)
         drawStumps(mode, canvas)
         drawBalls(mode, canvas)
-        GameMode.drawBackground(mode, canvas)
         GameMode.drawRunsLabels(mode, canvas)
         drawScore(mode, canvas)
         if mode.gameOver:
@@ -333,15 +410,15 @@ def drawScore(mode, canvas):
                     fill='red', text="SWING CRICKET", font = "Arial 50 bold",
                     anchor = 'nw')
     canvas.create_text(mode.width - mode.margin * 2, 
-                        mode.height - mode.lowerMargin + mode.margin,
+                        mode.height - mode.lowerMargin + 0.75 * mode.margin,
                         anchor = 'ne', text = f'Runs: {mode.runs}', 
                         fill= 'white', font = font)
     canvas.create_text(mode.width - mode.margin * 2, 
-                        mode.height - mode.lowerMargin + 3* mode.margin,
+                        mode.height - mode.lowerMargin + 2 * mode.margin,
                         anchor = 'ne', text = f'Strike Rate: {mode.strikeRate}',
                         fill= 'white', font = font)
     canvas.create_text(mode.width - mode.margin * 2, 
-                        mode.height - mode.lowerMargin + 4* mode.margin,
+                        mode.height - mode.lowerMargin + 3.25 * mode.margin,
                         anchor = 'ne', text = f'High Score: {mode.app.highScore}',
                         fill= 'white', font = font)
     
@@ -461,12 +538,13 @@ class LeaderboardMode(Mode):
 # App setup from 
 # https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html
 ###############################################################################
-class MyModalApp(ModalApp):
+class SwingCricket(ModalApp):
     def appStarted(app):
         app.user = "player1"
         app.highScore = readHighScore('highScores.txt', app.user)
         app.leaderboard = readLeaderboardFile("leaderboard.txt")
         app.learboardLowest = min(app.leaderboard)
+        app.graphics = True
 
         app.splashScreenMode = SplashScreenMode()
         app.gameMode = GameMode()
@@ -474,7 +552,7 @@ class MyModalApp(ModalApp):
         app.setActiveMode(app.splashScreenMode)
         app.timerDelay = 1
 
-app = MyModalApp(width=830, height=515)
+app = SwingCricket(width=840, height=520)
 
 
 

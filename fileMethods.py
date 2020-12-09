@@ -1,4 +1,4 @@
-### File methods
+### File methods for using leaderboard and high scores
 def readLeaderboardFile(file):
     leaderboard = dict()
     f = open(file)
@@ -43,5 +43,4 @@ def writeHighScore(name, score, file):
         newList.append(f'{name}:{score}\n')
     f.close()
     f = open(file, "w")
-    print(newList)
     f.writelines(newList)
