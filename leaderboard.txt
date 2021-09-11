@@ -7,4 +7,4 @@
 108:player1
 87:tmuskens
 220:trentino
-64:demo
+140:player1

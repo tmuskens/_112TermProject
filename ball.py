@@ -97,7 +97,7 @@ def checkBallCollision(mode):
             else:
                 if (mode.balls[i], mode.balls[j]) in Ball.ballInContact:
                     Ball.ballInContact.remove((mode.balls[i], mode.balls[j]))
-                if (mode.balls[j], mode.balls[i]) in Ball.ballInContact:
+                elif (mode.balls[j], mode.balls[i]) in Ball.ballInContact:
                     Ball.ballInContact.remove((mode.balls[j], mode.balls[i]))
 
 #used when ball collides with bat
